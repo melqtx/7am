@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>WeatherBoy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet">
+    <link href="/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <main>
+        <p class="summary">{{.Summary}}</p>
+        <button type="button" id="get-summary-btn" data-loc="{{.Location}}">Get daily updates at 7am</button>
+    </main>
+    <script src="/summary.js"></script>
+</body>
+
+</html>
