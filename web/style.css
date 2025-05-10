@@ -1,8 +1,8 @@
 :root {
     --background-color: #f3f4f6;
     --text-color: #1f2937;
-    --button-color: #030712;
-    --button-text-color: #f3f4f6;
+    --button-color: #d1d5db;
+    --button-text-color: #1f2937;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -81,10 +81,12 @@ main {
 button {
     background-color: var(--button-color);
     color: var(--button-text-color);
-    border: 0;
-    padding: 1rem 3rem;
+    border: 1px #9ca3af solid;
+    padding: 0.5rem 2rem;
     border-radius: 4px;
-    font-weight: bold;
+    width: 100%;
+    font-weight: 500;
+    box-shadow: rgba(0, 0, 0, 0.05) 0px 0px 0px 1px;
 }
 
 footer {
@@ -102,8 +104,11 @@ footer > p {
 }
 
 .summary {
-    max-width: 30ch;
-    font-size: 2em;
+    max-width: 40ch;
+    font-size: 1em;
+    line-height: 1.5em;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
 }
 
 .back-link {

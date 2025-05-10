@@ -89,7 +89,57 @@ type state struct {
 //go:embed web
 var webDir embed.FS
 
-var prompt = "The current time is 7am. Provide a summary of today's weather in %v below, as well as how to deal with the weather, such as how to dress for the weather, and whether they need an umbrella  Use celsius and fahrenheit for temperature. Mention %v in the summary, but don't add anything else, as the summary will be displayed on a website."
+var envKeys = []string{"GEMINI_API_KEY", "OPEN_WEATHER_MAP_API_KEY", "VAPID_PRIVATE_KEY_BASE64", "VAPID_PUBLIC_KEY_BASE64"}
+
+var prompt = `The current time is 5pm. Provide a short summary of the weather forecast for the next 48 hours in JSON in %v below.
+
+This is the JSON schema of the JSON:
+current Current weather data API response
+current.dt Current time, Unix, UTC
+current.sunrise Sunrise time, Unix, UTC. For polar areas in midnight sun and polar night periods this parameter is not returned in the response
+current.sunset Sunset time, Unix, UTC. For polar areas in midnight sun and polar night periods this parameter is not returned in the response
+current.temp Temperature. Units - default: kelvin, metric: Celsius, imperial: Fahrenheit. How to change units used
+current.feels_like Temperature. This temperature parameter accounts for the human perception of weather. Units – default: kelvin, metric: Celsius, imperial: Fahrenheit.
+current.pressure Atmospheric pressure on the sea level, hPa
+current.humidity Humidity, percentage
+current.dew_point Atmospheric temperature (varying according to pressure and humidity) below which water droplets begin to condense and dew can form. Units – default: kelvin, metric: Celsius, imperial: Fahrenheit
+current.clouds Cloudiness, percentage
+current.uvi Current UV index.
+current.visibility Average visibility, metres. The maximum value of the visibility is 10 km
+current.wind_speed Wind speed. Wind speed. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour. How to change units used
+current.wind_gust (where available) Wind gust. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour. How to change units used
+current.wind_deg Wind direction, degrees (meteorological)
+current.rain.1h (where available) Precipitation, mm/h. Please note that only mm/h as units of measurement are available for this parameter
+current.snow.1h (where available) Precipitation, mm/h. Please note that only mm/h as units of measurement are available for this parameter
+current.weather
+current.weather.id Weather condition id
+current.weather.main Group of weather parameters (Rain, Snow etc.)
+current.weather.description Weather condition within the group (full list of weather conditions). Get the output in your language
+current.weather.icon
+hourly Hourly forecast weather data API response
+hourly.dt Time of the forecasted data, Unix, UTC
+hourly.temp Temperature. Units – default: kelvin, metric: Celsius, imperial: Fahrenheit. How to change units used
+hourly.feels_like Temperature. This accounts for the human perception of weather. Units – default: kelvin, metric: Celsius, imperial: Fahrenheit.
+hourly.pressure Atmospheric pressure on the sea level, hPa
+hourly.humidity Humidity, percentage
+hourly.dew_point Atmospheric temperature (varying according to pressure and humidity) below which water droplets begin to condense and dew can form. Units – default: kelvin, metric: Celsius, imperial: Fahrenheit.
+hourly.uvi UV index
+hourly.clouds Cloudiness, percentage
+hourly.visibility Average visibility, metres. The maximum value of the visibility is 10 km
+hourly.wind_speed Wind speed. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour.How to change units used
+hourly.wind_gust (where available) Wind gust. Units – default: metre/sec, metric: metre/sec, imperial: miles/hour. How to change units used
+hourly.wind_deg Wind direction, degrees (meteorological)
+hourly.pop Probability of precipitation. The values of the parameter vary between 0 and 1, where 0 is equal to 0 percent, 1 is equal to 100 percent
+hourly.rain.1h (where available) Precipitation, mm/h. Please note that only mm/h as units of measurement are available for this parameter
+hourly.snow.1h (where available) Precipitation, mm/h. Please note that only mm/h as units of measurement are available for this parameter
+hourly.weather.id Weather condition id
+hourly.weather.main Group of weather parameters (Rain, Snow etc.)
+hourly.weather.description Weather condition within the group (full list of weather conditions). Get the output in your language
+
+Summarize hourly weather until midnight today. Keep it concise. Suggest how to deal with the weather, such as how to dress for the weather, and whether they need an umbrella.
+Use celsius and fahrenheit but not Kelvin for temperature. Mention %v in the summary, but don't add anything else, as the summary will be displayed on a website.
+The summary should be in plaintext for humans. Do not output in JSON.
+`
 
 var supportedLocations = map[string]location{
 	"london": {51.507351, -0.127758, "Europe/London"},
@@ -120,9 +170,10 @@ func main() {
 		return
 	}
 
-	err := godotenv.Load()
+	_ = godotenv.Load()
+	err := checkEnv()
 	if err != nil {
-		log.Fatalln("please create a .env file using the provided template!")
+		log.Fatal(err)
 	}
 
 	db, err := initDB()
@@ -227,6 +278,20 @@ func generateKeys() {
 	fmt.Println("all keys are base64 url encoded.")
 	fmt.Printf("public key: %v\n", pub)
 	fmt.Printf("private key: %v\n", priv)
+}
+
+func checkEnv() error {
+	var missing []string
+	for _, k := range envKeys {
+		v := os.Getenv(k)
+		if v == "" {
+			missing = append(missing, k)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("missing env: %v", strings.Join(missing, ", "))
+	}
+	return nil
 }
 
 func handleHTTPRequest(state *state) http.HandlerFunc {
@@ -463,7 +528,7 @@ func deleteSubscription(state *state, regID uuid.UUID) error {
 func updateSummaries(state *state, locKey string, loc *location) {
 	log.Printf("updating summary for %v...\n", locKey)
 
-	resp, err := http.Get(fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?lat=%f&lon=%f&appid=%v", loc.lat, loc.lon, state.apiKey.openWeatherMap))
+	resp, err := http.Get(fmt.Sprintf("https://api.openweathermap.org/data/3.0/onecall?lat=%v&lon=%v&exclude=minutely,daily&appid=%v", loc.lat, loc.lon, state.apiKey.openWeatherMap))
 	if err != nil {
 		log.Printf("error updating summaries for %s: %e\n", locKey, err)
 		return
@@ -478,7 +543,7 @@ func updateSummaries(state *state, locKey string, loc *location) {
 
 	result, err := state.genai.Models.GenerateContent(state.ctx, "gemini-2.0-flash", []*genai.Content{{
 		Parts: []*genai.Part{
-			{Text: fmt.Sprintf(prompt, locationNames[locKey])},
+			{Text: fmt.Sprintf(prompt, locationNames[locKey], locationNames[locKey])},
 			{Text: string(b)},
 		},
 	}}, nil)
