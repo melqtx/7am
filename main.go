@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/go-co-op/gocron/v2"
@@ -100,6 +101,8 @@ var supportedLocations = map[string]location{
 }
 
 func main() {
+	port := flag.Int("port", 8080, "the port that the server should listen on")
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalln("please create a .env file using the provided template!")
@@ -184,7 +187,10 @@ func main() {
 	}
 
 	http.HandleFunc("/", handleHTTPRequest(&state))
-	err = http.ListenAndServe(":8080", nil)
+
+	log.Printf("server listening on %d...", *port)
+
+	err = http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
 
 	if err != nil {
 		log.Printf("failed to start http server: %e\n", err)
