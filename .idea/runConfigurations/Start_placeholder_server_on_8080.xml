@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Start placeholder server on 8080" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="7am" />
+    <working_directory value="$PROJECT_DIR$" />
+    <parameters value="--use-placeholder" />
+    <kind value="PACKAGE" />
+    <package value="code.nym.sh/7am" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/main.go" />
+    <method v="2" />
+  </configuration>
+</component>

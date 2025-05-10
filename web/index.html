@@ -4,6 +4,9 @@
 <head>
     <title>7am Weather</title>
 
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet">
@@ -37,6 +40,12 @@
             </p>
         </footer>
     </div>
+
+    <script>
+        window.addEventListener("load", () => {
+            navigator.serviceWorker.register("/sw.js")
+        })
+    </script>
 </body>
 
 </html>

@@ -123,4 +123,6 @@ function jsonOrThrow(res) {
 
 if (canReceiveUpdates) {
     main()
+} else {
+    getSummaryButton.style.display = "none"
 }
