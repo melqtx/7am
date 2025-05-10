@@ -36,20 +36,24 @@ type location struct {
 	ianaName string
 }
 
+// pageTemplate stores all pre-compiled HTML templates for the application
 type pageTemplate struct {
 	summary *template.Template
 }
 
+// summaryTemplateData stores template data for summary.html
 type summaryTemplateData struct {
 	Summary  string
 	Location string
 }
 
+// updateSubscription is the request body for creating/updating registration
 type updateSubscription struct {
 	Subscription webpush.Subscription `json:"subscription"`
 	Locations    []string             `json:"locations"`
 }
 
+// registeredSubscription represents a registered webpush subscription.
 type registeredSubscription struct {
 	ID           uuid.UUID             `json:"id"`
 	Subscription *webpush.Subscription `json:"-"`
@@ -63,13 +67,21 @@ type state struct {
 	apiKey   apiKey
 	template pageTemplate
 
-	summaries    sync.Map
+	// summaries maps location keys to their latest weather summary
+	summaries sync.Map
+	// summaryChans stores a map of location key to the corresponding summary channel
+	// which is used to track summary updates
 	summaryChans map[string]chan string
 
-	subscriptions      map[string][]registeredSubscription
+	// subscriptions maps location keys to the list of registered subscriptions
+	// that are subscribed to updates for the location
+	subscriptions map[string][]registeredSubscription
+	// subscriptionsMutex syncs writes to subscriptions
 	subscriptionsMutex sync.Mutex
 
-	vapidPublicKey  string
+	// vapidPublicKey is the base64 url encoded VAPID public key
+	vapidPublicKey string
+	// vapidPrivateKey is the base64 url encoded VAPID private key
 	vapidPrivateKey string
 }
 
@@ -133,6 +145,7 @@ func main() {
 
 	var schedulers []gocron.Scheduler
 
+	// schedule periodic updates of weather summary for each supported location
 	for locKey, loc := range supportedLocations {
 		l, err := time.LoadLocation(loc.ianaName)
 		if err != nil {
@@ -159,6 +172,7 @@ func main() {
 		state.subscriptions[locKey] = []registeredSubscription{}
 		state.summaryChans[locKey] = c
 
+		// listen for summary updates, and publish updates to all update subscribers via web push
 		go listenForSummaryUpdates(&state, locKey)
 
 		s.Start()
@@ -399,7 +413,9 @@ func registerSubscription(state *state, sub *updateSubscription) (*registeredSub
 	}
 
 	for _, l := range sub.Locations {
+		state.subscriptionsMutex.Lock()
 		state.subscriptions[l] = append(state.subscriptions[l], reg)
+		state.subscriptionsMutex.Unlock()
 	}
 
 	return &reg, nil
@@ -450,6 +466,13 @@ func updateSummaries(state *state, locKey string, loc *location) {
 
 func listenForSummaryUpdates(state *state, locKey string) {
 	c := state.summaryChans[locKey]
+
+	opts := webpush.Options{
+		VAPIDPublicKey:  state.vapidPublicKey,
+		VAPIDPrivateKey: state.vapidPrivateKey,
+		TTL:             30,
+	}
+
 	for {
 		select {
 		case summary := <-c:
@@ -460,12 +483,7 @@ func listenForSummaryUpdates(state *state, locKey string) {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-
-					_, err := webpush.SendNotificationWithContext(state.ctx, []byte(summary), sub.Subscription, &webpush.Options{
-						VAPIDPublicKey:  state.vapidPublicKey,
-						VAPIDPrivateKey: state.vapidPrivateKey,
-						TTL:             30,
-					})
+					_, err := webpush.SendNotificationWithContext(state.ctx, []byte(summary), sub.Subscription, &opts)
 					if err != nil {
 						log.Printf("failed to send summary for %v to sub id %v: %e\n", locKey, sub.ID, err)
 					}
