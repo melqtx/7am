@@ -63,6 +63,11 @@ type registeredSubscription struct {
 	Locations    []string              `json:"locations"`
 }
 
+type webpushNotificationPayload struct {
+	Summary  string `json:"summary"`
+	Location string `json:"location"`
+}
+
 type state struct {
 	ctx      context.Context
 	db       *sql.DB
@@ -621,12 +626,22 @@ func listenForSummaryUpdates(state *state, locKey string) {
 		case summary := <-c:
 			log.Printf("sending summary for %v to subscribers...\n", locKey)
 
+			payload := webpushNotificationPayload{
+				Summary:  summary,
+				Location: locKey,
+			}
+			b, err := json.Marshal(&payload)
+			if err != nil {
+				log.Printf("error creating notification payload: %e\n", err)
+				continue
+			}
+
 			var wg sync.WaitGroup
 			for _, sub := range state.subscriptions[locKey] {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					_, err := webpush.SendNotificationWithContext(state.ctx, []byte(summary), sub.Subscription, &opts)
+					_, err := webpush.SendNotificationWithContext(state.ctx, b, sub.Subscription, &opts)
 					if err != nil {
 						log.Printf("failed to send summary for %v to sub id %v: %e\n", locKey, sub.ID, err)
 					}
