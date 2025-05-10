@@ -205,7 +205,7 @@ func main() {
 		}
 
 		_, err = s.NewJob(
-			gocron.DurationJob(time.Minute),
+			gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(0, 0, 0))),
 			gocron.NewTask(updateSummaries, &state, locKey, &loc),
 			gocron.WithStartAt(gocron.WithStartImmediately()),
 		)
