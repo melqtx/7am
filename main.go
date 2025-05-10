@@ -89,7 +89,7 @@ type state struct {
 //go:embed web
 var webDir embed.FS
 
-var prompt = "Provide a summaries of the weather below, mentioning the location. Provide suggestions on how to cope with the weather. Use celsius and fahrenheit for temperature. Do not add anything else. Respond in one line."
+var prompt = "The current time is 7am. Provide a summary of today's weather in %v below, as well as how to deal with the weather, such as how to dress for the weather, and whether they need an umbrella  Use celsius and fahrenheit for temperature. Mention %v in the summary, but don't add anything else, as the summary will be displayed on a website."
 
 var supportedLocations = map[string]location{
 	"london": {51.507351, -0.127758, "Europe/London"},
@@ -98,6 +98,15 @@ var supportedLocations = map[string]location{
 	"la":     {34.052235, -118.243683, "America/Los_Angeles"},
 	"nyc":    {40.712776, -74.005974, "America/New_York"},
 	"tokyo":  {35.689487, 139.691711, "Asia/Tokyo"},
+}
+
+var locationNames = map[string]string{
+	"london": "London",
+	"sf":     "San Francisco",
+	"sj":     "San Jose",
+	"la":     "Los Angeles",
+	"nyc":    "New York City",
+	"tokyo":  "Tokyo",
 }
 
 func main() {
@@ -469,7 +478,7 @@ func updateSummaries(state *state, locKey string, loc *location) {
 
 	result, err := state.genai.Models.GenerateContent(state.ctx, "gemini-2.0-flash", []*genai.Content{{
 		Parts: []*genai.Part{
-			{Text: prompt},
+			{Text: fmt.Sprintf(prompt, locationNames[locKey])},
 			{Text: string(b)},
 		},
 	}}, nil)
