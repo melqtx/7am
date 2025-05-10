@@ -2,7 +2,8 @@
   <configuration default="false" name="Generate VAPID" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="7am" />
     <working_directory value="$PROJECT_DIR$" />
-    <kind value="FILE" />
+    <parameters value="--generate-vapid-keys" />
+    <kind value="PACKAGE" />
     <package value="code.nym.sh/7am" />
     <directory value="$PROJECT_DIR$" />
     <filePath value="$PROJECT_DIR$/generate_vapid.go" />

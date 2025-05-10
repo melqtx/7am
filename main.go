@@ -102,6 +102,14 @@ var supportedLocations = map[string]location{
 
 func main() {
 	port := flag.Int("port", 8080, "the port that the server should listen on")
+	genKeys := flag.Bool("generate-vapid-keys", false, "generate a new vapid key pair, which will be outputted to stdout.")
+
+	flag.Parse()
+
+	if *genKeys {
+		generateKeys()
+		return
+	}
 
 	err := godotenv.Load()
 	if err != nil {
@@ -199,6 +207,17 @@ func main() {
 	for _, s := range schedulers {
 		s.Shutdown()
 	}
+}
+
+func generateKeys() {
+	priv, pub, err := webpush.GenerateVAPIDKeys()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("all keys are base64 url encoded.")
+	fmt.Printf("public key: %v\n", pub)
+	fmt.Printf("private key: %v\n", priv)
 }
 
 func handleHTTPRequest(state *state) http.HandlerFunc {

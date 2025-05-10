@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="go build code.nym.sh/7am" type="GoApplicationRunConfiguration" factoryName="Go Application" nameIsGenerated="true">
+  <configuration default="false" name="Start server on 8080" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="7am" />
     <working_directory value="$PROJECT_DIR$" />
     <kind value="FILE" />
