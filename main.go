@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -50,8 +51,9 @@ type summaryTemplateData struct {
 
 // updateSubscription is the request body for creating/updating registration
 type updateSubscription struct {
-	Subscription webpush.Subscription `json:"subscription"`
-	Locations    []string             `json:"locations"`
+	Subscription    webpush.Subscription `json:"subscription"`
+	Locations       []string             `json:"locations"`
+	RemoveLocations []string             `json:"removeLocations"`
 }
 
 // registeredSubscription represents a registered webpush subscription.
@@ -487,8 +489,16 @@ func updateRegisteredSubscription(state *state, id uuid.UUID, update *updateSubs
 
 	rows.Close()
 
+	// not very proud of this one
+	// ideally the list of locations should be stored in a separate table
+	// but since the list is very small, and im too lazy to bring in a separate table
+	// this should be fine for now
 	locs := strings.Split(locStr, ",")
 	locs = append(locs, update.Locations...)
+	locs = slices.DeleteFunc(locs, func(l string) bool {
+		return slices.Contains(update.RemoveLocations, l)
+	})
+	locs = slices.Compact(locs)
 
 	_, err = state.db.Exec(
 		"UPDATE subscriptions SET subscription_json = ?, locations = ? WHERE id = ?",
@@ -508,6 +518,11 @@ func updateRegisteredSubscription(state *state, id uuid.UUID, update *updateSubs
 	for _, l := range update.Locations {
 		state.subscriptions[l] = append(state.subscriptions[l], reg)
 	}
+	for _, l := range update.RemoveLocations {
+		state.subscriptions[l] = slices.DeleteFunc(state.subscriptions[l], func(s *registeredSubscription) bool {
+			return s.ID == reg.ID
+		})
+	}
 	state.subscriptionsMutex.Unlock()
 
 	return reg, nil
@@ -524,9 +539,11 @@ func registerSubscription(state *state, sub *updateSubscription) (*registeredSub
 		return nil, err
 	}
 
+	locs := slices.Compact(sub.Locations)
+
 	_, err = state.db.Exec(
 		"INSERT INTO subscriptions (id, locations, subscription_json) VALUES (?, ?, ?);",
-		id, strings.Join(sub.Locations, ","), string(j),
+		id, strings.Join(locs, ","), string(j),
 	)
 	if err != nil {
 		return nil, err
@@ -535,7 +552,7 @@ func registerSubscription(state *state, sub *updateSubscription) (*registeredSub
 	reg := registeredSubscription{
 		ID:           id,
 		Subscription: &sub.Subscription,
-		Locations:    sub.Locations,
+		Locations:    locs,
 	}
 
 	state.subscriptionsMutex.Lock()

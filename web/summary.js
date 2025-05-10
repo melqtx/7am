@@ -52,10 +52,10 @@ async function onButtonClick() {
                 },
                 body: JSON.stringify({
                     subscription: pushSub,
-                    locations: registeredSubscription.locations,
+                    removeLocations: [loc],
                 })
             }).then(jsonOrThrow)
-            localStorage.setItem(KEY_SUBSCRIPTION, newReg)
+            localStorage.setItem(KEY_SUBSCRIPTION, JSON.stringify(newReg))
         }
         getSummaryButton.innerText = "Get daily updates at 7am"
     } else {
