@@ -73,10 +73,9 @@ async function onButtonClick() {
                 applicationServerKey: publicKey
             })
 
-            registeredSubscription.locations.push(loc)
-
             let newSubscription
             if (registeredSubscription) {
+                registeredSubscription.locations.push(loc)
                 newSubscription = await fetch(`/registrations/${registeredSubscription.id}`, {
                     method: "PATCH",
                     headers: {
@@ -104,6 +103,7 @@ async function onButtonClick() {
 
             getSummaryButton.innerText = "Stop updates"
         } catch (error) {
+            console.error(error)
             alert(`Error when trying to subscribe to updates: ${error}`)
         }
     }
