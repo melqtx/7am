@@ -2,8 +2,14 @@ services:
   server:
     build:
       dockerfile: ./Dockerfile
-    env_file:
-      - .env
+      args:
+        uid: $UID
+        gid: $GID
+    environment:
+      GEMINI_API_KEY: $GEMINI_API_KEY
+      OPEN_WEATHER_MAP_API_KEY: $OPEN_WEATHER_MAP_API_KEY
+      VAPID_PRIVATE_KEY_BASE64: $VAPID_PRIVATE_KEY_BASE64
+      VAPID_PUBLIC_KEY_BASE64: $VAPID_PUBLIC_KEY_BASE64
     ports:
       - "8080:8080"
     volumes:

@@ -417,6 +417,12 @@ func handleHTTPRequest(state *state) http.HandlerFunc {
 }
 
 func initDB() (*sql.DB, error) {
+	f, err := os.OpenFile("data/data.sqlite", os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	f.Close()
+
 	db, err := sql.Open("sqlite", "file:data/data.sqlite")
 	if err != nil {
 		log.Fatalln("failed to initialize database")

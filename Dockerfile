@@ -1,4 +1,4 @@
-FROM golang:1.24 as builder
+FROM golang:1.24 AS builder
 
 WORKDIR /app
 
@@ -10,13 +10,17 @@ COPY web ./web
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o ./server
 
-FROM gcr.io/distroless/base-debian11 AS build-release-stage
+FROM alpine:3.21.3
 
-COPY --from=builder /app/server /app/server
+ARG uid
+ARG gid
+RUN apk add --no-cache tzdata && addgroup -g ${gid} -S nonroot && adduser -u ${uid} -S nonroot -G nonroot
+
+COPY --from=builder --chown=nonroot:nonroot /app/server /app/server
+WORKDIR /app
+RUN chown -R nonroot:nonroot /app
 
 USER nonroot:nonroot
-
-WORKDIR /app
 
 EXPOSE 8080
 
