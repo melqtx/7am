@@ -417,7 +417,7 @@ func handleHTTPRequest(state *state) http.HandlerFunc {
 }
 
 func initDB() (*sql.DB, error) {
-	db, err := sql.Open("sqlite", "file:data.sqlite")
+	db, err := sql.Open("sqlite", "file:data/data.sqlite")
 	if err != nil {
 		log.Fatalln("failed to initialize database")
 	}
