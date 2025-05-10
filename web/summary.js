@@ -59,6 +59,9 @@ async function onButtonClick() {
         }
         getSummaryButton.innerText = "Get daily updates at 7am"
     } else {
+        getSummaryButton.innerText = "Subscribing"
+        getSummaryButton.disabled = true
+
         const worker = await navigator.serviceWorker.ready
 
         try {
@@ -75,7 +78,6 @@ async function onButtonClick() {
 
             let newSubscription
             if (registeredSubscription) {
-                registeredSubscription.locations.push(loc)
                 newSubscription = await fetch(`/registrations/${registeredSubscription.id}`, {
                     method: "PATCH",
                     headers: {
@@ -83,7 +85,7 @@ async function onButtonClick() {
                     },
                     body: JSON.stringify({
                         subscription: pushSub,
-                        locations: registeredSubscription.locations,
+                        locations: [loc],
                     })
                 }).then(jsonOrThrow)
             } else {
@@ -105,6 +107,9 @@ async function onButtonClick() {
         } catch (error) {
             console.error(error)
             alert(`Error when trying to subscribe to updates: ${error}`)
+            getSummaryButton.innerText = "Get daily updates at 7am"
+        } finally {
+            getSummaryButton.disabled = false
         }
     }
 }
