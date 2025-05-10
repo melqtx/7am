@@ -90,7 +90,7 @@ var supportedLocations = map[string]location{
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatalln("Please create a .env file using the provided template!")
+		log.Fatalln("please create a .env file using the provided template!")
 	}
 
 	db, err := initDB()
@@ -164,10 +164,17 @@ func main() {
 		s.Start()
 	}
 
-	loadSubscriptions(&state)
+	err = loadSubscriptions(&state)
+	if err != nil {
+		log.Fatalf("failed to load existing subscriptions: %e\n", err)
+	}
 
 	http.HandleFunc("/", handleHTTPRequest(&state))
-	http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(":8080", nil)
+
+	if err != nil {
+		log.Printf("failed to start http server: %e\n", err)
+	}
 
 	for _, s := range schedulers {
 		s.Shutdown()
@@ -212,7 +219,7 @@ func handleHTTPRequest(state *state) http.HandlerFunc {
 				if err != nil {
 					writer.WriteHeader(http.StatusBadRequest)
 				}
-			} else if request.Method == "PATCH" {
+			} else if request.Method == "PATCH" || request.Method == "DELETE" {
 				parts := strings.Split(path, "/")
 				if len(parts) < 2 {
 					writer.WriteHeader(http.StatusMethodNotAllowed)
@@ -225,26 +232,41 @@ func handleHTTPRequest(state *state) http.HandlerFunc {
 					return
 				}
 
-				defer request.Body.Close()
+				switch request.Method {
+				case "PATCH":
+					defer request.Body.Close()
 
-				update := updateSubscription{}
-				err = json.NewDecoder(request.Body).Decode(&update)
-				if err != nil {
-					writer.WriteHeader(http.StatusBadRequest)
-					return
-				}
-
-				reg, err := updateRegisteredSubscription(state, regID, &update)
-				if err != nil {
-					if errors.Is(err, sql.ErrNoRows) {
-						writer.WriteHeader(http.StatusNotFound)
-					} else {
-						writer.WriteHeader(http.StatusInternalServerError)
+					update := updateSubscription{}
+					err = json.NewDecoder(request.Body).Decode(&update)
+					if err != nil {
+						writer.WriteHeader(http.StatusBadRequest)
+						return
 					}
-					return
+
+					reg, err := updateRegisteredSubscription(state, regID, &update)
+					if err != nil {
+						if errors.Is(err, sql.ErrNoRows) {
+							writer.WriteHeader(http.StatusNotFound)
+						} else {
+							writer.WriteHeader(http.StatusInternalServerError)
+						}
+					} else {
+						json.NewEncoder(writer).Encode(reg)
+					}
+
+				case "DELETE":
+					err = deleteSubscription(state, regID)
+					if err != nil {
+						if errors.Is(err, sql.ErrNoRows) {
+							writer.WriteHeader(http.StatusNotFound)
+						} else {
+							writer.WriteHeader(http.StatusInternalServerError)
+						}
+					} else {
+						writer.WriteHeader(http.StatusNoContent)
+					}
 				}
 
-				json.NewEncoder(writer).Encode(reg)
 			} else {
 				writer.WriteHeader(http.StatusMethodNotAllowed)
 			}
@@ -261,7 +283,7 @@ func handleHTTPRequest(state *state) http.HandlerFunc {
 			} else {
 				f, err := webDir.ReadFile("web/" + path)
 				if err != nil {
-					writer.WriteHeader(404)
+					writer.WriteHeader(http.StatusNotFound)
 				} else {
 					m := mime.TypeByExtension(filepath.Ext(path))
 					if m != "" {
@@ -383,6 +405,11 @@ func registerSubscription(state *state, sub *updateSubscription) (*registeredSub
 	return &reg, nil
 }
 
+func deleteSubscription(state *state, regID uuid.UUID) error {
+	_, err := state.db.Exec("DELETE FROM subscriptions WHERE id = ?", regID)
+	return err
+}
+
 func updateSummaries(state *state, locKey string, loc *location) {
 	log.Printf("updating summary for %v...\n", locKey)
 
@@ -427,16 +454,25 @@ func listenForSummaryUpdates(state *state, locKey string) {
 		select {
 		case summary := <-c:
 			log.Printf("sending summary for %v to subscribers...\n", locKey)
+
+			var wg sync.WaitGroup
 			for _, sub := range state.subscriptions[locKey] {
-				_, err := webpush.SendNotificationWithContext(state.ctx, []byte(summary), sub.Subscription, &webpush.Options{
-					VAPIDPublicKey:  state.vapidPublicKey,
-					VAPIDPrivateKey: state.vapidPrivateKey,
-					TTL:             30,
-				})
-				if err != nil {
-					log.Printf("failed to send notification %e\n", err)
-				}
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+
+					_, err := webpush.SendNotificationWithContext(state.ctx, []byte(summary), sub.Subscription, &webpush.Options{
+						VAPIDPublicKey:  state.vapidPublicKey,
+						VAPIDPrivateKey: state.vapidPrivateKey,
+						TTL:             30,
+					})
+					if err != nil {
+						log.Printf("failed to send summary for %v to sub id %v: %e\n", locKey, sub.ID, err)
+					}
+				}()
 			}
+
+			wg.Wait()
 
 		case <-state.ctx.Done():
 			return

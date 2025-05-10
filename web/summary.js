@@ -1,11 +1,12 @@
 const KEY_SUBSCRIPTION = "subscription"
 
-const canReceiveUpdates = "Notification" in window && "serviceWorker" in navigator
+const canReceiveUpdates = "serviceWorker" in navigator
 const getSummaryButton = document.getElementById("get-summary-btn")
 const loc = getSummaryButton.dataset.loc
-getSummaryButton.style.display = "none"
 
 async function main() {
+    getSummaryButton.style.display = "none"
+
     window.addEventListener("load", () => {
         navigator.serviceWorker.register("/sw.js")
     })
@@ -29,13 +30,33 @@ async function main() {
 async function onButtonClick() {
     const reg = await navigator.serviceWorker.ready
 
+    const pushSub = await reg.pushManager.getSubscription()
     const existingSubscriptionJson = localStorage.getItem(KEY_SUBSCRIPTION)
-    const existingSubscription = existingSubscriptionJson ? JSON.parse(existingSubscriptionJson) : null
-    const currentlyEnabled = existingSubscription?.locations?.includes(loc) ?? false
+    const registeredSubscription = existingSubscriptionJson ? JSON.parse(existingSubscriptionJson) : null
+    const currentlyEnabled = (registeredSubscription?.locations?.includes(loc) ?? false) && pushSub !== null
 
     if (currentlyEnabled) {
-        await reg.pushManager.getSubscription().then((sub) => sub?.unsubscribe())
-        localStorage.removeItem(KEY_SUBSCRIPTION)
+        registeredSubscription.locations.splice(
+            registeredSubscription.locations.indexOf(loc),
+            1
+        )
+        if (registeredSubscription.locations.length === 0) {
+            await reg.pushManager.getSubscription().then((sub) => sub?.unsubscribe())
+            await fetch(`/registrations/${registeredSubscription.id}`, { method: "DELETE" })
+            localStorage.removeItem(KEY_SUBSCRIPTION)
+        } else {
+            const newReg = await fetch(`/registrations/${registeredSubscription.id}`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    subscription: pushSub,
+                    locations: registeredSubscription.locations,
+                })
+            }).then(jsonOrThrow)
+            localStorage.setItem(KEY_SUBSCRIPTION, newReg)
+        }
         getSummaryButton.innerText = "Get daily updates at 7am"
     } else {
         const worker = await navigator.serviceWorker.ready
@@ -50,27 +71,22 @@ async function onButtonClick() {
             const pushSub = await worker.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: publicKey
-            }).catch((error) => {
-                console.error(error)
             })
 
+            registeredSubscription.locations.push(loc)
+
             let newSubscription
-            if (existingSubscription) {
-                newSubscription = await fetch(`/registrations/${existingSubscription.id}`, {
+            if (registeredSubscription) {
+                newSubscription = await fetch(`/registrations/${registeredSubscription.id}`, {
                     method: "PATCH",
                     headers: {
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
                         subscription: pushSub,
-                        locations: [...existingSubscription.locations, loc]
+                        locations: registeredSubscription.locations,
                     })
-                }).then((res) => {
-                    if (res.status === 200) {
-                        return res.json()
-                    }
-                    throw new Error(`${res.status}`)
-                })
+                }).then(jsonOrThrow)
             } else {
                 newSubscription = await fetch("/registrations", {
                     method: "POST",
@@ -81,22 +97,23 @@ async function onButtonClick() {
                         subscription: pushSub,
                         locations: [loc]
                     })
-                }).then((res) => {
-                    if (res.status === 200) {
-                        return res.json()
-                    }
-                    throw new Error(`${res.status}`)
-                })
+                }).then(jsonOrThrow)
             }
 
             localStorage.setItem(KEY_SUBSCRIPTION, JSON.stringify(newSubscription))
 
             getSummaryButton.innerText = "Stop updates"
         } catch (error) {
-            console.log(error)
+            alert(`Error when trying to subscribe to updates: ${error}`)
         }
     }
+}
 
+function jsonOrThrow(res) {
+    if (res.status === 200) {
+        return res.json()
+    }
+    throw new Error(`server returned status ${res.status}`)
 }
 
 if (canReceiveUpdates) {
