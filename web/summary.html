@@ -2,7 +2,12 @@
 <html lang="en">
 
 <head>
-    <title>7am Weather</title>
+    <title>7am weather for {{.LocationName}}</title>
+
+    <meta name="twitter:card" content="summary" />
+    <meta property="og:title" content="7am Weather">
+    <meta property="og:description" content="Weather summary for {{.LocationName}}">
+    <meta property="og:image" content="/hero.png">
 
     <link rel="icon" type="image/png" href="/favicon.png">
     <link rel="manifest" href="/manifest.json">
@@ -20,7 +25,7 @@
         <main>
             <a class="back-link" href="/">&lt;- All locations</a>
             <p class="summary">{{.Summary}}</p>
-            <button type="button" id="get-summary-btn" data-loc="{{.Location}}">Get daily updates at 7am</button>
+            <button type="button" id="get-summary-btn" data-loc="{{.Location}}">Get daily summary at 7am</button>
         </main>
     </div>
     <script src="/summary.js"></script>

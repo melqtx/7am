@@ -45,8 +45,9 @@ type pageTemplate struct {
 
 // summaryTemplateData stores template data for summary.html
 type summaryTemplateData struct {
-	Summary  string
-	Location string
+	Summary      string
+	Location     string
+	LocationName string
 }
 
 // updateSubscription is the request body for creating/updating registration
@@ -368,7 +369,8 @@ func handleHTTPRequest(state *state) http.HandlerFunc {
 
 			summary, ok := state.summaries.Load(path)
 			if ok {
-				state.template.summary.Execute(writer, summaryTemplateData{summary.(string), path})
+				loc := supportedLocations[path]
+				state.template.summary.Execute(writer, summaryTemplateData{summary.(string), path, loc.displayName})
 			} else {
 				f, err := webDir.ReadFile("web/" + path)
 				if err != nil {
