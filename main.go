@@ -99,7 +99,7 @@ type state struct {
 //go:embed web
 var webDir embed.FS
 
-var envKeys = []string{"GEMINI_API_KEY", "ACCU_WEATHER_API_KEY", "VAPID_SUBJECT_KEY", "VAPID_PRIVATE_KEY_BASE64", "VAPID_PUBLIC_KEY_BASE64"}
+var envKeys = []string{"GEMINI_API_KEY", "ACCU_WEATHER_API_KEY", "VAPID_SUBJECT", "VAPID_PRIVATE_KEY_BASE64", "VAPID_PUBLIC_KEY_BASE64"}
 
 var prompt = `The current time is 5pm. Provide a short summary of the weather forecast in JSON in %v below. Keep it concise. Suggest how to deal with the weather, such as how to dress for the weather, and whether they need an umbrella.
 Use celsius and fahrenheit but not Kelvin for temperature. Mention %v in the summary, but don't add anything else, as the summary will be displayed on a website.
