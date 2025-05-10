@@ -89,6 +89,7 @@ type state struct {
 	// subscriptionsMutex syncs writes to subscriptions
 	subscriptionsMutex sync.Mutex
 
+	vapidSubject string
 	// vapidPublicKey is the base64 url encoded VAPID public key
 	vapidPublicKey string
 	// vapidPrivateKey is the base64 url encoded VAPID private key
@@ -98,7 +99,7 @@ type state struct {
 //go:embed web
 var webDir embed.FS
 
-var envKeys = []string{"GEMINI_API_KEY", "ACCU_WEATHER_API_KEY", "VAPID_PRIVATE_KEY_BASE64", "VAPID_PUBLIC_KEY_BASE64"}
+var envKeys = []string{"GEMINI_API_KEY", "ACCU_WEATHER_API_KEY", "VAPID_SUBJECT_KEY", "VAPID_PRIVATE_KEY_BASE64", "VAPID_PUBLIC_KEY_BASE64"}
 
 var prompt = `The current time is 5pm. Provide a short summary of the weather forecast in JSON in %v below. Keep it concise. Suggest how to deal with the weather, such as how to dress for the weather, and whether they need an umbrella.
 Use celsius and fahrenheit but not Kelvin for temperature. Mention %v in the summary, but don't add anything else, as the summary will be displayed on a website.
@@ -184,6 +185,7 @@ func main() {
 
 		subscriptions: map[string][]*registeredSubscription{},
 
+		vapidSubject:    os.Getenv("VAPID_SUBJECT"),
 		vapidPublicKey:  os.Getenv("VAPID_PUBLIC_KEY_BASE64"),
 		vapidPrivateKey: os.Getenv("VAPID_PRIVATE_KEY_BASE64"),
 	}
@@ -596,6 +598,7 @@ func listenForSummaryUpdates(state *state, locKey string) {
 	c := state.summaryChans[locKey]
 
 	opts := webpush.Options{
+		Subscriber:      state.vapidSubject,
 		VAPIDPublicKey:  state.vapidPublicKey,
 		VAPIDPrivateKey: state.vapidPrivateKey,
 		TTL:             30,
