@@ -17,6 +17,7 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"log/slog"
 	"mime"
 	_ "modernc.org/sqlite"
 	"net/http"
@@ -145,6 +146,8 @@ func main() {
 		return
 	}
 
+	slog.Info("starting 7am...")
+
 	_ = godotenv.Load()
 	err := checkEnv()
 	if err != nil {
@@ -225,6 +228,8 @@ func main() {
 		go listenForSummaryUpdates(&state, locKey)
 
 		s.Start()
+
+		slog.Info("update job scheduled", "location", locKey)
 	}
 
 	err = loadSubscriptions(&state)
@@ -234,10 +239,9 @@ func main() {
 
 	http.HandleFunc("/", handleHTTPRequest(&state))
 
-	log.Printf("server listening on %d...", *port)
+	slog.Info("server starting", "port", *port)
 
 	err = http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
-
 	if err != nil {
 		log.Printf("failed to start http server: %e\n", err)
 	}
@@ -245,6 +249,8 @@ func main() {
 	for _, s := range schedulers {
 		s.Shutdown()
 	}
+
+	slog.Info("7am shut down")
 }
 
 func generateKeys() {
@@ -302,6 +308,7 @@ func handleHTTPRequest(state *state) http.HandlerFunc {
 
 				reg, err := registerSubscription(state, &update)
 				if err != nil {
+					slog.Error("web push subscription registration failed", "error", err)
 					writer.WriteHeader(http.StatusBadRequest)
 					return
 				}
@@ -309,6 +316,8 @@ func handleHTTPRequest(state *state) http.HandlerFunc {
 				err = json.NewEncoder(writer).Encode(reg)
 				if err != nil {
 					writer.WriteHeader(http.StatusBadRequest)
+				} else {
+					slog.Info("new web push registration", "id", reg.ID)
 				}
 			} else if request.Method == "PATCH" || request.Method == "DELETE" {
 				parts := strings.Split(path, "/")
@@ -343,6 +352,7 @@ func handleHTTPRequest(state *state) http.HandlerFunc {
 						}
 					} else {
 						json.NewEncoder(writer).Encode(reg)
+						slog.Info("web push registration updated", "id", reg.ID, "locations", strings.Join(reg.Locations, ","))
 					}
 
 				case "DELETE":
@@ -355,6 +365,7 @@ func handleHTTPRequest(state *state) http.HandlerFunc {
 						}
 					} else {
 						writer.WriteHeader(http.StatusNoContent)
+						slog.Info("web push registration deleted", "id", regID)
 					}
 				}
 
@@ -428,12 +439,14 @@ func loadSubscriptions(state *state) error {
 
 		err := rows.Scan(&id, &locations, &j)
 		if err != nil {
+			slog.Warn("unable to load a subscription", "error", err)
 			continue
 		}
 
 		s := webpush.Subscription{}
 		err = json.Unmarshal([]byte(j), &s)
 		if err != nil {
+			slog.Warn("invalid web push subscription json encountered", "id", id, "error", err)
 			continue
 		}
 
@@ -514,12 +527,12 @@ func updateRegisteredSubscription(state *state, id uuid.UUID, update *updateSubs
 func registerSubscription(state *state, sub *updateSubscription) (*registeredSubscription, error) {
 	j, err := json.Marshal(sub.Subscription)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid web push subscription object: %w", err)
 	}
 
 	id, err := uuid.NewV7()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to generate id for subscription: %w", err)
 	}
 
 	locs := slices.Compact(sub.Locations)
@@ -529,7 +542,7 @@ func registerSubscription(state *state, sub *updateSubscription) (*registeredSub
 		id, strings.Join(locs, ","), string(j),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to insert into subscriptions table: %w", err)
 	}
 
 	reg := registeredSubscription{
@@ -553,7 +566,7 @@ func deleteSubscription(state *state, regID uuid.UUID) error {
 }
 
 func updateSummary(state *state, locKey string, loc *location) {
-	log.Printf("updating summary for %v...\n", locKey)
+	slog.Info("updating weather summary", "location", locKey)
 
 	var weatherJSON string
 	if state.usePlaceholder {
@@ -561,21 +574,21 @@ func updateSummary(state *state, locKey string, loc *location) {
 	} else {
 		req, err := http.NewRequest("GET", fmt.Sprintf("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=%v&lon=%v", loc.lat, loc.lon), nil)
 		if err != nil {
-			log.Printf("error querying weather data for %s: %e\n", locKey, err)
+			slog.Error("failed to query weather data", "location", locKey, "error", err)
 			return
 		}
 		req.Header.Set("User-Agent", state.metAPIUserAgent)
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
-			log.Printf("error updating summaries for %s: %e\n", locKey, err)
+			slog.Error("failed to query weather data", "location", locKey, "error", err)
 			return
 		}
 
 		b, err := io.ReadAll(resp.Body)
 		defer resp.Body.Close()
 		if err != nil {
-			log.Printf("error updating summaries for %s: %e\n", locKey, err)
+			slog.Error("failed to query weather data", "location", locKey, "error", err)
 			return
 		}
 
@@ -591,7 +604,7 @@ func updateSummary(state *state, locKey string, loc *location) {
 		},
 	}}, nil)
 	if err != nil {
-		log.Printf("error updating summaries for %s: %e\n", locKey, err)
+		slog.Error("failed to generate weather summary", "location", locKey, "error", err)
 		return
 	}
 
@@ -603,7 +616,7 @@ func updateSummary(state *state, locKey string, loc *location) {
 		c <- summary
 	}
 
-	log.Printf("updated summary for %v successfully\n", locKey)
+	slog.Info("updated weather summary", "location", locKey)
 }
 
 func listenForSummaryUpdates(state *state, locKey string) {
@@ -619,31 +632,35 @@ func listenForSummaryUpdates(state *state, locKey string) {
 	for {
 		select {
 		case summary := <-c:
-			log.Printf("sending summary for %v to subscribers...\n", locKey)
-
 			payload := webpushNotificationPayload{
 				Summary:  summary,
 				Location: locKey,
 			}
 			b, err := json.Marshal(&payload)
 			if err != nil {
-				log.Printf("error creating notification payload: %e\n", err)
+				slog.Error("failed to create web push notification payload", "location", locKey, "error", err)
 				continue
 			}
 
+			subs := state.subscriptions[locKey]
+
+			slog.Info("pushing weather summary to subscribers", "count", len(subs), "location", locKey)
+
 			var wg sync.WaitGroup
-			for _, sub := range state.subscriptions[locKey] {
+			for _, sub := range subs {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
 					_, err := webpush.SendNotificationWithContext(state.ctx, b, sub.Subscription, &opts)
 					if err != nil {
-						log.Printf("failed to send summary for %v to sub id %v: %e\n", locKey, sub.ID, err)
+						slog.Warn("unable to send web push to subscription", "id", sub.ID, "location", locKey, "error", err)
 					}
 				}()
 			}
 
 			wg.Wait()
+
+			slog.Info("pushed weather summary to subscribers", "count", len(subs), "location", locKey)
 
 		case <-state.ctx.Done():
 			return
