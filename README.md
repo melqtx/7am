@@ -6,7 +6,7 @@
 
 7am is a website that delivers daily weather summary to the user at 7am.
 
-It queries weather data from ACCU Weather, then uses Gemini-2.0-Flash to summarize the resulting response.
+It queries weather data from the [MET Norway API](https://developer.yr.no/), then uses Gemini-2.0-Flash to summarize the resulting response.
 Finally, the summary is delivered to the user using the [web push API](https://developer.mozilla.org/en-US/docs/Web/API/Push_API).
 
 ## Deploying 7am
