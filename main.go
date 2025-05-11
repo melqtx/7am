@@ -154,6 +154,18 @@ func main() {
 		log.Fatal(err)
 	}
 
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	p := filepath.Join(wd, "data")
+	err = os.MkdirAll(p, os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
+	slog.Info("data directory created", "path", p)
+
 	db, err := initDB()
 	if err != nil {
 		log.Fatalf("failed to initialize db: %e\n", err)
@@ -400,12 +412,6 @@ func handleHTTPRequest(state *state) http.HandlerFunc {
 }
 
 func initDB() (*sql.DB, error) {
-	f, err := os.OpenFile("data/data.sqlite", os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	f.Close()
-
 	db, err := sql.Open("sqlite", "file:data/data.sqlite")
 	if err != nil {
 		log.Fatalln("failed to initialize database")
