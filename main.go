@@ -28,14 +28,12 @@ import (
 	"time"
 )
 
-type apiKey struct {
-	accuWeather string
-}
-
 type location struct {
-	displayName string
+	tz          *time.Location
+	lat         float32
+	lon         float32
 	ianaName    string
-	key         string
+	displayName string
 }
 
 // pageTemplate stores all pre-compiled HTML templates for the application
@@ -70,11 +68,11 @@ type webpushNotificationPayload struct {
 }
 
 type state struct {
-	ctx      context.Context
-	db       *sql.DB
-	genai    *genai.Client
-	apiKey   apiKey
-	template pageTemplate
+	ctx             context.Context
+	db              *sql.DB
+	metAPIUserAgent string
+	genai           *genai.Client
+	template        pageTemplate
 
 	usePlaceholder bool
 
@@ -100,10 +98,13 @@ type state struct {
 //go:embed web
 var webDir embed.FS
 
-var envKeys = []string{"GEMINI_API_KEY", "ACCU_WEATHER_API_KEY", "VAPID_SUBJECT", "VAPID_PRIVATE_KEY_BASE64", "VAPID_PUBLIC_KEY_BASE64"}
+var envKeys = []string{"GEMINI_API_KEY", "MET_API_USER_AGENT", "VAPID_SUBJECT", "VAPID_PRIVATE_KEY_BASE64", "VAPID_PUBLIC_KEY_BASE64"}
 
-var prompt = `The current time is 5pm. Provide a short summary of the weather forecast in JSON in %v below. Keep it concise. Suggest how to deal with the weather, such as how to dress for the weather, and whether they need an umbrella.
-Use celsius and fahrenheit but not Kelvin for temperature. Mention %v in the summary, but don't add anything else, as the summary will be displayed on a website.
+var prompt = `The current date and time is %v 7:00am. Provide a short summary of the weather forecast only for today in JSON in %v below.
+Keep it concise. Suggest how to deal with the weather, such as how to dress for the weather, and whether they need an umbrella, but err on the side of caution.
+Use celsius and fahrenheit but not Kelvin for temperature.
+Mention %v in the summary, but don't add anything else, as the summary will be displayed on a website.
+Do not mention today's date or time in the summary.
 The summary should be in plaintext for humans. Do not output in JSON.`
 
 var placeholderWeather = map[string]string{
@@ -120,16 +121,16 @@ var placeholderWeather = map[string]string{
 }
 
 var supportedLocations = map[string]location{
-	"london": {"London", "Europe/London", "328328"},
-	"sf":     {"San Francisco", "America/Los_Angeles", "347629"},
-	"sj":     {"San Jose", "America/Los_Angeles", "347630"},
-	"la":     {"Los Angeles", "America/Los_Angeles", "347625"},
-	"nyc":    {"New York City", "America/New_York", "14-349727_1_AL"},
-	"tokyo":  {"Tokyo", "Asia/Tokyo", "226396"},
-	"warsaw": {"Warsaw", "Europe/Warsaw", "274663"},
-	"zurich": {"Zurich", "Europe/Zurich", "316622"},
-	"berlin": {"Berlin", "Europe/Berlin", "178087"},
-	"dubai":  {"Dubai", "Asia/Dubai", "323091"},
+	"london": {nil, 51.507351, -0.127758, "Europe/London", "London"},
+	"sf":     {nil, 37.774929, -122.419418, "America/Los_Angeles", "San Francisco"},
+	"sj":     {nil, 37.338207, -121.886330, "America/Los_Angeles", "San Jose"},
+	"la":     {nil, 34.052235, -118.243683, "America/Los_Angeles", "Los Angeles"},
+	"nyc":    {nil, 40.712776, -74.005974, "America/New_York", "New York City"},
+	"tokyo":  {nil, 35.689487, 139.691711, "Asia/Tokyo", "Tokyo"},
+	"warsaw": {nil, 52.229675, 21.012230, "Europe/Warsaw", "Warsaw"},
+	"zurich": {nil, 47.369019, 8.538030, "Europe/Zurich", "Zurich"},
+	"berlin": {nil, 52.520008, 13.404954, "Europe/Berlin", "Berlin"},
+	"dubai":  {nil, 25.204849, 55.270782, "Asia/Dubai", "Dubai"},
 }
 
 func main() {
@@ -170,11 +171,9 @@ func main() {
 	summaryPageTemplate, _ := template.New("summary.html").Parse(string(summaryHTML))
 
 	state := state{
-		ctx: ctx,
-		db:  db,
-		apiKey: apiKey{
-			accuWeather: os.Getenv("ACCU_WEATHER_API_KEY"),
-		},
+		ctx:             ctx,
+		db:              db,
+		metAPIUserAgent: os.Getenv("MET_API_USER_AGENT"),
 		template: pageTemplate{
 			summary: summaryPageTemplate,
 		},
@@ -200,6 +199,8 @@ func main() {
 			log.Fatal(err)
 		}
 
+		loc.tz = l
+
 		s, err := gocron.NewScheduler(gocron.WithLocation(l))
 		if err != nil {
 			log.Fatal(err)
@@ -207,7 +208,7 @@ func main() {
 
 		_, err = s.NewJob(
 			gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(7, 0, 0))),
-			gocron.NewTask(updateSummaries, &state, locKey, &loc),
+			gocron.NewTask(updateSummary, &state, locKey, &loc),
 			gocron.WithStartAt(gocron.WithStartImmediately()),
 		)
 		if err != nil {
@@ -551,14 +552,21 @@ func deleteSubscription(state *state, regID uuid.UUID) error {
 	return err
 }
 
-func updateSummaries(state *state, locKey string, loc *location) {
+func updateSummary(state *state, locKey string, loc *location) {
 	log.Printf("updating summary for %v...\n", locKey)
 
 	var weatherJSON string
 	if state.usePlaceholder {
 		weatherJSON = placeholderWeather[locKey]
 	} else {
-		resp, err := http.Get(fmt.Sprintf("http://dataservice.accuweather.com/forecasts/v1/daily/1day/%v?apikey=%v&detail=true", loc.key, state.apiKey.accuWeather))
+		req, err := http.NewRequest("GET", fmt.Sprintf("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=%v&lon=%v", loc.lat, loc.lon), nil)
+		if err != nil {
+			log.Printf("error querying weather data for %s: %e\n", locKey, err)
+			return
+		}
+		req.Header.Set("User-Agent", state.metAPIUserAgent)
+
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			log.Printf("error updating summaries for %s: %e\n", locKey, err)
 			return
@@ -574,9 +582,11 @@ func updateSummaries(state *state, locKey string, loc *location) {
 		weatherJSON = string(b)
 	}
 
+	date := time.Now().In(loc.tz).Format("2006-02-01")
+
 	result, err := state.genai.Models.GenerateContent(state.ctx, "gemini-2.0-flash", []*genai.Content{{
 		Parts: []*genai.Part{
-			{Text: fmt.Sprintf(prompt, loc.displayName, loc.displayName)},
+			{Text: fmt.Sprintf(prompt, date, loc.displayName, loc.displayName)},
 			{Text: weatherJSON},
 		},
 	}}, nil)
