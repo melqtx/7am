@@ -86,7 +86,7 @@ button {
     border-radius: 4px;
     width: 100%;
     font-weight: 500;
-    box-shadow: rgba(0, 0, 0, 0.05) 0px 0px 0px 1px;
+    box-shadow: rgba(0, 0, 0, 0.05) 0 0 0 1px;
 }
 @media (prefers-color-scheme: dark) {
     button {
@@ -114,6 +114,20 @@ footer > p {
     line-height: 1.5em;
     padding-top: 1rem;
     padding-bottom: 1rem;
+}
+
+.instructions {
+    max-width: 40ch;
+    line-height: 1.5em;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.instructions-link {
+    font-size: 0.8em;
+    display: block;
+    text-align: center;
+    margin-top: 1rem;
 }
 
 .back-link {

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>7am - Instructions for iOS</title>
+
+    <meta name="description" content="7am instructions for iOS users">
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:title" content="7am Weather">
+    <meta property="og:description" content="7am instructions for iOS users">
+    <meta property="og:image" content="/hero.png">
+
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="manifest" href="/manifest.json">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap" rel="stylesheet">
+    <link href="/style.css" rel="stylesheet">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+<div class="container">
+    <header>
+        <h1>7am</h1>
+        <h2>Instructions for iOS</h2>
+    </header>
+
+    <main class="instructions">
+        <p>On iOS devices, you need to install 7am as an app first before you can receive push notifications. Follow these steps:</p>
+        <ol>
+            <li>Open the share menu in Safari (the share button is in the middle, below the address bar)</li>
+            <li>Swipe up, then tap "Add to Home Screen"</li>
+            <li>Tap "Add" on the top right hand corner</li>
+            <li>Tap on the newly added 7am icon.</li>
+        </ol>
+        <p>You should now be able to subscribe to updates and receive them via push notifications.</p>
+
+        <a href="/">Start using 7am.</a>
+    </main>
+</div>
+
+<script>
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js")
+    })
+</script>
+</body>
+
+</html>

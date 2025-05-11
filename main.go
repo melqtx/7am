@@ -301,6 +301,9 @@ func handleHTTPRequest(state *state) http.HandlerFunc {
 			} else {
 				writer.WriteHeader(http.StatusMethodNotAllowed)
 			}
+		} else if path == "instructions" {
+			f, _ := webDir.ReadFile("web/instructions.html")
+			writer.Write(f)
 		} else if path == "vapid" {
 			if request.Method == "" || request.Method == "GET" {
 				writer.Write([]byte(state.vapidPublicKey))
