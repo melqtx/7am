@@ -4,11 +4,17 @@
 <head>
     <title>7am weather for {{.LocationName}}</title>
 
+    <meta name="title" content="7am weather for {{.LocationName}}">
     <meta name="description" content="Weather summary for {{.LocationName}}">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://7am.is/{{.Location}}">
     <meta property="og:title" content="7am Weather">
     <meta property="og:description" content="Weather summary for {{.LocationName}}">
     <meta property="og:image" content="https://7am.is/hero.png">
+
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://7am.is/{{.Location}}">
     <meta name="twitter:title" content="7am Weather">
     <meta name="twitter:description" content="Weather summary for {{.LocationName}}">
     <meta name="twitter:image" content="https://7am.is/hero.png">
