@@ -609,12 +609,14 @@ func fetchInitialSummaries(state *state) {
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				slog.Warn("unable to get cached weather summary", "location", locKey, "error", err)
 			} else if err == nil {
-				rows.Next()
-				err = rows.Scan(&summary)
-				if err != nil {
-					slog.Warn("unable to get cached weather summary", "location", locKey, "error", err)
+				defer rows.Close()
+				ok := rows.Next()
+				if ok {
+					err = rows.Scan(&summary)
+					if err != nil {
+						slog.Warn("unable to get cached weather summary", "location", locKey, "error", err)
+					}
 				}
-				rows.Close()
 			}
 
 			if summary == "" {
