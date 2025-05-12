@@ -73,6 +73,12 @@ type metAPIData struct {
 	} `json:"properties"`
 }
 
+type updateSummaryOptions struct {
+	locKey     string
+	location   *location
+	pushUpdate bool
+}
+
 type state struct {
 	ctx             context.Context
 	db              *sql.DB
@@ -122,7 +128,7 @@ var placeholderWeather = map[string]string{
 	"dubai":  "{\"Headline\":{\"EffectiveDate\":\"2025-05-11T01:00:00+04:00\",\"EffectiveEpochDate\":1746910800,\"Severity\":7,\"Text\":\"Warm late Saturday night\",\"Category\":\"heat\",\"EndDate\":\"2025-05-11T07:00:00+04:00\",\"EndEpochDate\":1746932400,\"MobileLink\":\"http://www.accuweather.com/en/ae/dubai/323091/daily-weather-forecast/323091?lang=en-us\",\"Link\":\"http://www.accuweather.com/en/ae/dubai/323091/daily-weather-forecast/323091?lang=en-us\"},\"DailyForecasts\":[{\"Date\":\"2025-05-10T07:00:00+04:00\",\"EpochDate\":1746846000,\"Sun\":{\"Rise\":\"2025-05-10T05:37:00+04:00\",\"EpochRise\":1746841020,\"Set\":\"2025-05-10T18:54:00+04:00\",\"EpochSet\":1746888840},\"Moon\":{\"Rise\":\"2025-05-10T17:04:00+04:00\",\"EpochRise\":1746882240,\"Set\":\"2025-05-11T04:28:00+04:00\",\"EpochSet\":1746923280,\"Phase\":\"WaxingGibbous\",\"Age\":13},\"Temperature\":{\"Minimum\":{\"Value\":81,\"Unit\":\"F\",\"UnitType\":18},\"Maximum\":{\"Value\":100,\"Unit\":\"F\",\"UnitType\":18}},\"RealFeelTemperature\":{\"Minimum\":{\"Value\":88,\"Unit\":\"F\",\"UnitType\":18,\"Phrase\":\"Very Warm\"},\"Maximum\":{\"Value\":108,\"Unit\":\"F\",\"UnitType\":18,\"Phrase\":\"Dangerous Heat\"}},\"RealFeelTemperatureShade\":{\"Minimum\":{\"Value\":88,\"Unit\":\"F\",\"UnitType\":18,\"Phrase\":\"Very Warm\"},\"Maximum\":{\"Value\":103,\"Unit\":\"F\",\"UnitType\":18,\"Phrase\":\"Very Hot\"}},\"HoursOfSun\":11.5,\"DegreeDaySummary\":{\"Heating\":{\"Value\":0,\"Unit\":\"F\",\"UnitType\":18},\"Cooling\":{\"Value\":26,\"Unit\":\"F\",\"UnitType\":18}},\"AirAndPollen\":[{\"Name\":\"AirQuality\",\"Value\":0,\"Category\":\"Good\",\"CategoryValue\":1,\"Type\":\"Ozone\"},{\"Name\":\"Grass\",\"Value\":0,\"Category\":\"Low\",\"CategoryValue\":1},{\"Name\":\"Mold\",\"Value\":0,\"Category\":\"Low\",\"CategoryValue\":1},{\"Name\":\"Ragweed\",\"Value\":0,\"Category\":\"Low\",\"CategoryValue\":1},{\"Name\":\"Tree\",\"Value\":0,\"Category\":\"Low\",\"CategoryValue\":1},{\"Name\":\"UVIndex\",\"Value\":12,\"Category\":\"Extreme\",\"CategoryValue\":5}],\"Day\":{\"Icon\":2,\"IconPhrase\":\"Mostly sunny\",\"HasPrecipitation\":false,\"ShortPhrase\":\"Mostly sunny and very warm\",\"LongPhrase\":\"Mostly sunny and very warm\",\"PrecipitationProbability\":0,\"ThunderstormProbability\":0,\"RainProbability\":0,\"SnowProbability\":0,\"IceProbability\":0,\"Wind\":{\"Speed\":{\"Value\":8.1,\"Unit\":\"mi/h\",\"UnitType\":9},\"Direction\":{\"Degrees\":29,\"Localized\":\"NNE\",\"English\":\"NNE\"}},\"WindGust\":{\"Speed\":{\"Value\":29.9,\"Unit\":\"mi/h\",\"UnitType\":9},\"Direction\":{\"Degrees\":340,\"Localized\":\"NNW\",\"English\":\"NNW\"}},\"TotalLiquid\":{\"Value\":0,\"Unit\":\"in\",\"UnitType\":1},\"Rain\":{\"Value\":0,\"Unit\":\"in\",\"UnitType\":1},\"Snow\":{\"Value\":0,\"Unit\":\"in\",\"UnitType\":1},\"Ice\":{\"Value\":0,\"Unit\":\"in\",\"UnitType\":1},\"HoursOfPrecipitation\":0,\"HoursOfRain\":0,\"HoursOfSnow\":0,\"HoursOfIce\":0,\"CloudCover\":15,\"Evapotranspiration\":{\"Value\":0.26,\"Unit\":\"in\",\"UnitType\":1},\"SolarIrradiance\":{\"Value\":8508.5,\"Unit\":\"W/m²\",\"UnitType\":33},\"RelativeHumidity\":{\"Minimum\":40,\"Maximum\":74,\"Average\":52},\"WetBulbTemperature\":{\"Minimum\":{\"Value\":75,\"Unit\":\"F\",\"UnitType\":18},\"Maximum\":{\"Value\":80,\"Unit\":\"F\",\"UnitType\":18},\"Average\":{\"Value\":78,\"Unit\":\"F\",\"UnitType\":18}},\"WetBulbGlobeTemperature\":{\"Minimum\":{\"Value\":82,\"Unit\":\"F\",\"UnitType\":18},\"Maximum\":{\"Value\":90,\"Unit\":\"F\",\"UnitType\":18},\"Average\":{\"Value\":86,\"Unit\":\"F\",\"UnitType\":18}}},\"Night\":{\"Icon\":33,\"IconPhrase\":\"Clear\",\"HasPrecipitation\":false,\"ShortPhrase\":\"Clear and very warm\",\"LongPhrase\":\"Clear and very warm\",\"PrecipitationProbability\":0,\"ThunderstormProbability\":0,\"RainProbability\":0,\"SnowProbability\":0,\"IceProbability\":0,\"Wind\":{\"Speed\":{\"Value\":4.6,\"Unit\":\"mi/h\",\"UnitType\":9},\"Direction\":{\"Degrees\":25,\"Localized\":\"NNE\",\"English\":\"NNE\"}},\"WindGust\":{\"Speed\":{\"Value\":11.5,\"Unit\":\"mi/h\",\"UnitType\":9},\"Direction\":{\"Degrees\":340,\"Localized\":\"NNW\",\"English\":\"NNW\"}},\"TotalLiquid\":{\"Value\":0,\"Unit\":\"in\",\"UnitType\":1},\"Rain\":{\"Value\":0,\"Unit\":\"in\",\"UnitType\":1},\"Snow\":{\"Value\":0,\"Unit\":\"in\",\"UnitType\":1},\"Ice\":{\"Value\":0,\"Unit\":\"in\",\"UnitType\":1},\"HoursOfPrecipitation\":0,\"HoursOfRain\":0,\"HoursOfSnow\":0,\"HoursOfIce\":0,\"CloudCover\":0,\"Evapotranspiration\":{\"Value\":0.03,\"Unit\":\"in\",\"UnitType\":1},\"SolarIrradiance\":{\"Value\":141.9,\"Unit\":\"W/m²\",\"UnitType\":33},\"RelativeHumidity\":{\"Minimum\":44,\"Maximum\":74,\"Average\":59},\"WetBulbTemperature\":{\"Minimum\":{\"Value\":73,\"Unit\":\"F\",\"UnitType\":18},\"Maximum\":{\"Value\":78,\"Unit\":\"F\",\"UnitType\":18},\"Average\":{\"Value\":76,\"Unit\":\"F\",\"UnitType\":18}},\"WetBulbGlobeTemperature\":{\"Minimum\":{\"Value\":81,\"Unit\":\"F\",\"UnitType\":18},\"Maximum\":{\"Value\":86,\"Unit\":\"F\",\"UnitType\":18},\"Average\":{\"Value\":84,\"Unit\":\"F\",\"UnitType\":18}}},\"Sources\":[\"AccuWeather\"],\"MobileLink\":\"http://www.accuweather.com/en/ae/dubai/323091/daily-weather-forecast/323091?lang=en-us\",\"Link\":\"http://www.accuweather.com/en/ae/dubai/323091/daily-weather-forecast/323091?lang=en-us\"}]}",
 }
 
-var supportedLocations = map[string]location{
+var supportedLocations = map[string]*location{
 	"london": {nil, 51.507351, -0.127758, "Europe/London", "London"},
 	"sf":     {nil, 37.774929, -122.419418, "America/Los_Angeles", "San Francisco"},
 	"sj":     {nil, 37.338207, -121.886330, "America/Los_Angeles", "San Jose"},
@@ -138,38 +144,45 @@ var supportedLocations = map[string]location{
 func main() {
 	port := flag.Int("port", 8080, "the port that the server should listen on")
 	genKeys := flag.Bool("generate-vapid-keys", false, "generate a new vapid key pair, which will be outputted to stdout.")
-	usePlaceholder := flag.Bool("use-placeholder", false, "use placeholder data instead of real API data.")
 
 	flag.Parse()
 
 	if *genKeys {
 		generateKeys()
-		return
+	} else if err := startServer(*port); err != nil {
+		log.Fatal(err)
 	}
+}
 
+func startServer(port int) error {
 	slog.Info("starting 7am...")
 
-	_ = godotenv.Load()
-	err := checkEnv()
+	err := loadTimeZones()
 	if err != nil {
-		log.Fatal(err)
+		return err
+	}
+
+	_ = godotenv.Load()
+	err = checkEnv()
+	if err != nil {
+		return err
 	}
 
 	wd, err := os.Getwd()
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to get cwd: %w", err)
 	}
 
 	p := filepath.Join(wd, "data")
 	err = os.MkdirAll(p, os.ModePerm)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to create data directory at %v: %w", p, err)
 	}
 	slog.Info("data directory created", "path", p)
 
 	db, err := initDB()
 	if err != nil {
-		log.Fatalf("failed to initialize db: %e\n", err)
+		return fmt.Errorf("failed to initialize db: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -180,7 +193,7 @@ func main() {
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
-		log.Fatalf("failed to initialize gemini client: %e\n", err)
+		return fmt.Errorf("failed to initialize gemini client: %w\n", err)
 	}
 
 	summaryHTML, _ := webDir.ReadFile("web/summary.html")
@@ -197,7 +210,7 @@ func main() {
 		summaryChans: map[string]chan string{},
 		genai:        genaiClient,
 
-		usePlaceholder: *usePlaceholder,
+		usePlaceholder: false,
 
 		subscriptions: map[string][]*registeredSubscription{},
 
@@ -206,28 +219,29 @@ func main() {
 		vapidPrivateKey: os.Getenv("VAPID_PRIVATE_KEY_BASE64"),
 	}
 
+	fetchInitialSummaries(&state)
+
 	var schedulers []gocron.Scheduler
 
 	// schedule periodic updates of weather summary for each supported location
 	for locKey, loc := range supportedLocations {
-		l, err := time.LoadLocation(loc.ianaName)
+		s, err := gocron.NewScheduler(gocron.WithLocation(loc.tz))
 		if err != nil {
-			log.Fatal(err)
-		}
-
-		loc.tz = l
-
-		s, err := gocron.NewScheduler(gocron.WithLocation(l))
-		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("failed to create gocron scheduler for %v: %w", locKey, err)
 		}
 
 		_, err = s.NewJob(
 			gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(7, 0, 0))),
-			gocron.NewTask(updateSummary, &state, locKey, &loc),
+			gocron.NewTask(func(ctx context.Context) {
+				updateSummary(ctx, &state, updateSummaryOptions{
+					locKey:     locKey,
+					location:   loc,
+					pushUpdate: true,
+				})
+			}),
 		)
 		if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("failed to scheduel gocron job for %v: %w", locKey, err)
 		}
 
 		schedulers = append(schedulers, s)
@@ -246,16 +260,16 @@ func main() {
 
 	err = loadSubscriptions(&state)
 	if err != nil {
-		log.Fatalf("failed to load existing subscriptions: %e\n", err)
+		return fmt.Errorf("failed to load existing subscriptions: %w", err)
 	}
 
 	http.HandleFunc("/", handleHTTPRequest(&state))
 
-	slog.Info("server starting", "port", *port)
+	slog.Info("server starting", "port", port)
 
-	err = http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
+	err = http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 	if err != nil {
-		log.Printf("failed to start http server: %e\n", err)
+		return fmt.Errorf("failed to start http server: %w", err)
 	}
 
 	for _, s := range schedulers {
@@ -263,6 +277,8 @@ func main() {
 	}
 
 	slog.Info("7am shut down")
+
+	return nil
 }
 
 func generateKeys() {
@@ -426,6 +442,11 @@ func initDB() (*sql.DB, error) {
 			locations TEXT NOT NULL,
 			subscription_json TEXT NOT NULL
 		);
+
+		CREATE TABLE IF NOT EXISTS summaries(
+			location TEXT PRIMARY KEY,
+			summary TEXT NOT NULL
+		);
 	`)
 	if err != nil {
 		return nil, err
@@ -574,7 +595,55 @@ func deleteSubscription(state *state, regID uuid.UUID) error {
 	return err
 }
 
-func updateSummary(state *state, locKey string, loc *location) {
+func loadTimeZones() error {
+	for locKey, loc := range supportedLocations {
+		tz, err := time.LoadLocation(loc.ianaName)
+		if err != nil {
+			return fmt.Errorf("failed to load time zone for %v: %w", locKey, err)
+		}
+		loc.tz = tz
+	}
+	return nil
+}
+
+func fetchInitialSummaries(state *state) {
+	var wg sync.WaitGroup
+	for locKey, loc := range supportedLocations {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			summary := ""
+			rows, err := state.db.Query("SELECT summary FROM summaries WHERE location = ?", locKey)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				slog.Warn("unable to get cached weather summary", "location", locKey, "error", err)
+			} else if err == nil {
+				rows.Next()
+				err = rows.Scan(&summary)
+				if err != nil {
+					slog.Warn("unable to get cached weather summary", "location", locKey, "error", err)
+				}
+				rows.Close()
+			}
+
+			if summary == "" {
+				updateSummary(state.ctx, state, updateSummaryOptions{
+					locKey:     locKey,
+					location:   loc,
+					pushUpdate: false,
+				})
+			} else {
+				state.summaries.Store(locKey, summary)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func updateSummary(ctx context.Context, state *state, opts updateSummaryOptions) {
+	locKey := opts.locKey
+	loc := opts.location
+
 	slog.Info("updating weather summary", "location", locKey)
 
 	today := time.Now().In(loc.tz)
@@ -583,7 +652,7 @@ func updateSummary(state *state, locKey string, loc *location) {
 	if state.usePlaceholder {
 		weatherJSON = placeholderWeather[locKey]
 	} else {
-		req, err := http.NewRequest("GET", fmt.Sprintf("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=%v&lon=%v", loc.lat, loc.lon), nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=%v&lon=%v", loc.lat, loc.lon), nil)
 		if err != nil {
 			slog.Error("failed to query weather data", "location", locKey, "error", err)
 			return
@@ -628,7 +697,7 @@ func updateSummary(state *state, locKey string, loc *location) {
 		weatherJSON = string(b)
 	}
 
-	result, err := state.genai.Models.GenerateContent(state.ctx, "gemini-2.0-flash", []*genai.Content{{
+	result, err := state.genai.Models.GenerateContent(ctx, "gemini-2.0-flash", []*genai.Content{{
 		Parts: []*genai.Part{
 			{Text: fmt.Sprintf(prompt, today.Format("2006-02-01"), loc.displayName, loc.displayName)},
 			{Text: weatherJSON},
@@ -640,11 +709,19 @@ func updateSummary(state *state, locKey string, loc *location) {
 	}
 
 	summary := result.Text()
-	c := state.summaryChans[locKey]
+
+	_, err = state.db.ExecContext(ctx, "INSERT INTO summaries (location, summary) VALUES (?, ?)", locKey, summary)
+	if err != nil {
+		slog.Warn("unable to cache generated weather summary to db", "location", locKey, "error", err)
+	}
 
 	state.summaries.Store(locKey, summary)
-	if len(state.subscriptions[locKey]) > 0 {
-		c <- summary
+
+	if opts.pushUpdate {
+		c := state.summaryChans[locKey]
+		if len(state.subscriptions[locKey]) > 0 {
+			c <- summary
+		}
 	}
 
 	slog.Info("updated weather summary", "location", locKey)
