@@ -703,7 +703,7 @@ func updateSummary(ctx context.Context, state *state, opts updateSummaryOptions)
 
 	summary := result.Text()
 
-	_, err = state.db.ExecContext(ctx, "INSERT INTO summaries (location, summary) VALUES (?, ?)", locKey, summary)
+	_, err = state.db.ExecContext(ctx, "INSERT OR REPLACE INTO summaries (location, summary) VALUES (?, ?)", locKey, summary)
 	if err != nil {
 		slog.Warn("unable to cache generated weather summary to db", "location", locKey, "error", err)
 	}
