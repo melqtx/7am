@@ -116,17 +116,19 @@ var envKeys = []string{"GEMINI_API_KEY", "MET_API_USER_AGENT", "VAPID_SUBJECT", 
 var prompt string
 
 var supportedLocations = map[string]*location{
-	"london": {nil, 51.507351, -0.127758, "Europe/London", "London"},
-	"sf":     {nil, 37.774929, -122.419418, "America/Los_Angeles", "San Francisco"},
-	"sj":     {nil, 37.338207, -121.886330, "America/Los_Angeles", "San Jose"},
-	"la":     {nil, 34.052235, -118.243683, "America/Los_Angeles", "Los Angeles"},
-	"nyc":    {nil, 40.712776, -74.005974, "America/New_York", "New York City"},
-	"tokyo":  {nil, 35.689487, 139.691711, "Asia/Tokyo", "Tokyo"},
-	"warsaw": {nil, 52.229675, 21.012230, "Europe/Warsaw", "Warsaw"},
-	"zurich": {nil, 47.369019, 8.538030, "Europe/Zurich", "Zurich"},
-	"berlin": {nil, 52.520008, 13.404954, "Europe/Berlin", "Berlin"},
-	"dubai":  {nil, 25.204849, 55.270782, "Asia/Dubai", "Dubai"},
-	"paris":  {nil, 48.864716, 2.349014, "Europe/Paris", "Paris"},
+	"london":    {nil, 51.507351, -0.127758, "Europe/London", "London"},
+	"sf":        {nil, 37.774929, -122.419418, "America/Los_Angeles", "San Francisco"},
+	"sj":        {nil, 37.338207, -121.886330, "America/Los_Angeles", "San Jose"},
+	"la":        {nil, 34.052235, -118.243683, "America/Los_Angeles", "Los Angeles"},
+	"nyc":       {nil, 40.712776, -74.005974, "America/New_York", "New York City"},
+	"tokyo":     {nil, 35.689487, 139.691711, "Asia/Tokyo", "Tokyo"},
+	"warsaw":    {nil, 52.229675, 21.012230, "Europe/Warsaw", "Warsaw"},
+	"zurich":    {nil, 47.369019, 8.538030, "Europe/Zurich", "Zurich"},
+	"berlin":    {nil, 52.520008, 13.404954, "Europe/Berlin", "Berlin"},
+	"dubai":     {nil, 25.204849, 55.270782, "Asia/Dubai", "Dubai"},
+	"paris":     {nil, 48.864716, 2.349014, "Europe/Paris", "Paris"},
+	"stockholm": {nil, 59.329323, 18.068581, "Europe/Stockholm", "Stockholm"},
+	"amsterdam": {nil, 52.370216, 4.895168, "Europe/Amsterdam", "Amsterdam"},
 }
 
 func main() {
