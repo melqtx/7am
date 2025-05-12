@@ -81,12 +81,12 @@ type updateSummaryOptions struct {
 
 type state struct {
 	ctx             context.Context
-	db              *sql.DB
 	metAPIUserAgent string
 	genai           *genai.Client
 	template        pageTemplate
 
-	usePlaceholder bool
+	db      *sql.DB
+	dbMutex sync.Mutex
 
 	// summaries maps location keys to their latest weather summary
 	summaries sync.Map
@@ -189,7 +189,6 @@ func startServer(port int) error {
 
 	state := state{
 		ctx:             ctx,
-		db:              db,
 		metAPIUserAgent: os.Getenv("MET_API_USER_AGENT"),
 		template: pageTemplate{
 			summary: summaryPageTemplate,
@@ -198,7 +197,8 @@ func startServer(port int) error {
 		summaryChans: map[string]chan string{},
 		genai:        genaiClient,
 
-		usePlaceholder: false,
+		db:      db,
+		dbMutex: sync.Mutex{},
 
 		subscriptions: map[string][]*registeredSubscription{},
 
@@ -425,6 +425,9 @@ func initDB() (*sql.DB, error) {
 	}
 
 	_, err = db.Exec(`
+		PRAGMA journal_mode = WAL;
+		PRAGMA synchronous = NORMAL;
+
 		CREATE TABLE IF NOT EXISTS subscriptions(
 			id TEXT PRIMARY KEY,
 			locations TEXT NOT NULL,
