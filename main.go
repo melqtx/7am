@@ -15,7 +15,6 @@ import (
 	"github.com/joho/godotenv"
 	"google.golang.org/genai"
 	"html/template"
-	"io"
 	"log"
 	"log/slog"
 	"mime"
@@ -66,6 +65,12 @@ type registeredSubscription struct {
 type webpushNotificationPayload struct {
 	Summary  string `json:"summary"`
 	Location string `json:"location"`
+}
+
+type metAPIData struct {
+	Properties struct {
+		TimeSeries []map[string]any `json:"timeseries"`
+	} `json:"properties"`
 }
 
 type state struct {
@@ -220,7 +225,6 @@ func main() {
 		_, err = s.NewJob(
 			gocron.DailyJob(1, gocron.NewAtTimes(gocron.NewAtTime(7, 0, 0))),
 			gocron.NewTask(updateSummary, &state, locKey, &loc),
-			gocron.WithStartAt(gocron.WithStartImmediately()),
 		)
 		if err != nil {
 			log.Fatal(err)
@@ -573,6 +577,8 @@ func deleteSubscription(state *state, regID uuid.UUID) error {
 func updateSummary(state *state, locKey string, loc *location) {
 	slog.Info("updating weather summary", "location", locKey)
 
+	today := time.Now().In(loc.tz)
+
 	var weatherJSON string
 	if state.usePlaceholder {
 		weatherJSON = placeholderWeather[locKey]
@@ -590,21 +596,41 @@ func updateSummary(state *state, locKey string, loc *location) {
 			return
 		}
 
-		b, err := io.ReadAll(resp.Body)
 		defer resp.Body.Close()
+
+		data := metAPIData{}
+		err = json.NewDecoder(resp.Body).Decode(&data)
 		if err != nil {
-			slog.Error("failed to query weather data", "location", locKey, "error", err)
+			slog.Error("failed to decode received weather data", "location", locKey, "error", err)
+			return
+		}
+
+		y, m, d := today.Date()
+
+		t := slices.DeleteFunc(data.Properties.TimeSeries, func(series map[string]any) bool {
+			if ts, ok := series["time"].(string); ok {
+				t, err := time.Parse(time.RFC3339, ts)
+				if err != nil {
+					return false
+				}
+				ty, tm, td := t.In(loc.tz).Date()
+				return !(y == ty && m == tm && d == td)
+			}
+			return false
+		})
+
+		b, err := json.Marshal(t)
+		if err != nil {
+			slog.Error("failed to marshal processed time series data", "location", locKey, "error", err)
 			return
 		}
 
 		weatherJSON = string(b)
 	}
 
-	date := time.Now().In(loc.tz).Format("2006-02-01")
-
 	result, err := state.genai.Models.GenerateContent(state.ctx, "gemini-2.0-flash", []*genai.Content{{
 		Parts: []*genai.Part{
-			{Text: fmt.Sprintf(prompt, date, loc.displayName, loc.displayName)},
+			{Text: fmt.Sprintf(prompt, today.Format("2006-02-01"), loc.displayName, loc.displayName)},
 			{Text: weatherJSON},
 		},
 	}}, nil)
