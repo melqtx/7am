@@ -397,6 +397,39 @@ func handleHTTPRequest(state *state) http.HandlerFunc {
 				writer.WriteHeader(http.StatusMethodNotAllowed)
 			}
 
+		} else if strings.HasPrefix(path, "api/") {
+			if origin := request.Header.Get("Origin"); origin != "" {
+				writer.Header().Set("Access-Control-Allow-Origin", origin)
+			}
+
+			if strings.HasPrefix(path, "api/summary/") {
+				switch request.Method {
+				case "OPTIONS":
+					writer.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+					writer.WriteHeader(http.StatusOK)
+
+				case "GET":
+					location := strings.TrimPrefix(path, "api/summary/")
+					summary, ok := state.summaries.Load(location)
+					if !ok {
+						writer.WriteHeader(http.StatusNotFound)
+						return
+					}
+
+					response := map[string]string{
+						"summary": strings.TrimSpace(summary.(string)),
+					}
+
+					writer.Header().Set("Content-Type", "application/json")
+
+					json.NewEncoder(writer).Encode(response)
+
+				default:
+					writer.WriteHeader(http.StatusMethodNotAllowed)
+				}
+			} else {
+				writer.WriteHeader(http.StatusNotFound)
+			}
 		} else {
 			if request.Method != "" && request.Method != "GET" {
 				writer.WriteHeader(http.StatusMethodNotAllowed)
